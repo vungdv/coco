@@ -1,0 +1,3 @@
+project_id = "bep-phuong-bac"
+[functions.orders]
+verify_jwt = false # authenticated by x-api-key instead

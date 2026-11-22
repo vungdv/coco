@@ -1,0 +1,54 @@
+export interface Order {
+  id: string
+  customer_name: string
+  quantity: number
+  message: string
+  delivery_date: string
+  delivered: boolean
+  delivered_at: string | null
+  created_at: string
+  pending?: boolean
+}
+
+export const ORDER_COLUMNS = 'id,customer_name,quantity,message,delivery_date,delivered,delivered_at,created_at'
+
+/** Undelivered first, then created_at ascending (§5.1). */
+export function sortOrders(list: Order[]): Order[] {
+  return [...list].sort((a, b) =>
+    Number(a.delivered) - Number(b.delivered) || a.created_at.localeCompare(b.created_at))
+}
+
+export function summarize(list: Order[]) {
+  return {
+    orders: list.length,
+    portions: list.reduce((n, o) => n + o.quantity, 0),
+    delivered: list.filter(o => o.delivered).length,
+  }
+}
+
+/** Data-access seam: Supabase in production, localStorage demo when no backend is configured. */
+export interface OrderRepo {
+  mode: 'supabase' | 'demo'
+  list(date: string): Promise<Order[]>
+  setDelivered(id: string, delivered: boolean): Promise<void>
+  subscribe(date: string, onChange: () => void): () => void
+}
+
+export function withTimeout<T>(p: PromiseLike<T>, ms = 10_000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms)
+    Promise.resolve(p).then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
+  })
+}
+
+/** Retry with exponential backoff (M7). */
+export async function retry<T>(fn: () => Promise<T>, tries = 3, base = 400): Promise<T> {
+  let err: unknown
+  for (let i = 0; i < tries; i++) {
+    try { return await fn() } catch (e) {
+      err = e
+      if (i < tries - 1) await new Promise(r => setTimeout(r, base * 2 ** i))
+    }
+  }
+  throw err
+}

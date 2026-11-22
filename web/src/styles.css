@@ -17,8 +17,7 @@ body {
     calc(96px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-h1 { font-size: 1.6rem; margin: 0; }
-h2.date { font-size: 1.05rem; margin: 12px 0 4px; }
+h2.date { font-size: 1.05rem; margin: 0 0 4px; }
 .summary { margin: 0 0 14px; color: var(--muted); }
 .demo { font-style: italic; }
 .btn {

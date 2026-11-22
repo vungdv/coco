@@ -36,23 +36,24 @@ onMounted(async () => {
     <div v-else-if="sessionState === 'denied'" class="center">
       <p>You don't have access.</p>
       <button class="btn" @click="signOut">Sign out</button>
-    </div>
+    </div> 
 
     <template v-else>
       <div v-if="!online" class="banner">You're offline — showing last loaded data</div>
       <header class="top">
-        <h1>Order management</h1>
+        <div>
+          <h2 class="date">{{ formatLong(date) }}
+            <button v-if="date !== todayVN()" class="link" @click="setDate(todayVN())">Today</button>
+          </h2>
+          <p class="summary">
+            {{ summary.orders }} {{ summary.orders === 1 ? 'order' : 'orders' }} · {{ summary.portions }} portions · {{ summary.delivered }} delivered
+            <span v-if="repo.mode === 'demo'" class="demo">· demo data</span>
+          </p>
+        </div>
         <label class="btn pick">Pick date
           <input type="date" :value="date" aria-label="Pick date" @change="setDate(($event.target as HTMLInputElement).value)" />
         </label>
       </header>
-      <h2 class="date">{{ formatLong(date) }}
-        <button v-if="date !== todayVN()" class="link" @click="setDate(todayVN())">Today</button>
-      </h2>
-      <p class="summary">
-        {{ summary.orders }} {{ summary.orders === 1 ? 'order' : 'orders' }} · {{ summary.portions }} portions · {{ summary.delivered }} delivered
-        <span v-if="repo.mode === 'demo'" class="demo">· demo data</span>
-      </p>
 
       <SkeletonRows v-if="loading" />
       <div v-else-if="error" class="state">

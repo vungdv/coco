@@ -10,6 +10,7 @@ import { checkHealth, hasBackend, supabaseRepo } from './lib/supabase'
 import { demoRepo } from './lib/demoRepo'
 
 const LoginForm = defineAsyncComponent(() => import('./components/LoginForm.vue')) // lazy (M5)
+const SetPasswordForm = defineAsyncComponent(() => import('./components/SetPasswordForm.vue'))
 const repo = hasBackend ? supabaseRepo : demoRepo
 const { date, setDate } = useDateRoute()
 const toast = ref('')
@@ -31,6 +32,7 @@ onMounted(async () => {
 
     <div v-if="sessionState === 'loading'" class="center">Loading…</div>
     <LoginForm v-else-if="sessionState === 'signedout'" />
+    <SetPasswordForm v-else-if="sessionState === 'setpassword'" />
     <div v-else-if="sessionState === 'denied'" class="center">
       <p>You don't have access.</p>
       <button class="btn" @click="signOut">Sign out</button>

@@ -11,7 +11,7 @@ export const supabaseRepo: OrderRepo = {
   mode: 'supabase',
   async list(date) {
     const { data, error } = await withTimeout(
-      supabase!.from('orders').select(ORDER_COLUMNS).eq('delivery_date', date).order('created_at').limit(500))
+      supabase!.from('orders').select(ORDER_COLUMNS).eq('delivery_date', date).order('placed_at').limit(500))
     if (error) throw error
     return data as Order[]
   },

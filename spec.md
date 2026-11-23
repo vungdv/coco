@@ -41,11 +41,12 @@ Constraints: GitHub Pages is static → no secrets in the frontend (only Supabas
 | `delivered` | boolean, default false | |
 | `delivered_at` | timestamptz, nullable | set when `delivered` becomes true, cleared on undo |
 | `delivered_by` | uuid → `auth.users`, nullable | |
-| `created_at` / `updated_at` | timestamptz | `updated_at` via trigger |
+| `placed_at` | timestamptz, not null, default `now()` | when the customer placed the order (e.g. Zalo message time); shown under NAME as `HH:mm` |
+| `created_at` / `updated_at` | timestamptz | row insert time / `updated_at` via trigger |
 
 Constraints / indexes
 - `unique (source, external_id)` where `external_id is not null`.
-- Index on `(delivery_date, delivered, created_at)`.
+- Index on `(delivery_date, delivered, placed_at)`.
 - Optional later: `phone`, `address`, `note` columns (kept out of v1).
 
 ### `api_keys`
@@ -65,7 +66,7 @@ Constraints / indexes
 - **Orders card:** rounded white card with soft shadow.
   - Header row (grey background, uppercase small bold labels): *(checkbox column, no label)*, `NAME`, `QTY.`, `MESSAGE`.
   - One row per order: rounded-square checkbox, name, quantity, message. Rows separated by a thin divider.
-  - Order of rows: `delivered = false` first, then by `created_at` ascending; delivered rows move to the bottom, with muted text and strikethrough on name.
+  - Order of rows: `delivered = false` first, then by `placed_at` ascending; delivered rows move to the bottom, with muted text and strikethrough on name.
 - **Summary (addition to reference):** below the title, `N orders · M portions · K delivered` for the selected date.
 - Desktop: same layout, centered with `max-width: ~720px`.
 
@@ -130,16 +131,19 @@ Request
   "customer_name": "Honey",
   "quantity": 5,
   "message": "Em 5 suat nhe",
-  "delivery_date": "2026-11-21"
+  "delivery_date": "2026-11-21",
+  "placed_at": "2026-11-21T08:05:00+07:00"
 }
 ```
+`placed_at` is optional: an RFC 3339 date-time with an explicit offset, the time the customer placed the order. Omitted → the insert time on create, unchanged on update.
+
 Response `201` (created) or `200` (updated): the stored order JSON.
 
 - **S17 – Create.** Given a valid key and a new `(source, external_id)`, When I POST, Then a new order is created with `delivered=false` and `201` returned.
 - **S18 – Update (idempotent).** Given an existing `(source, external_id)`, When I POST changed `quantity`/`message`/`delivery_date`, Then the same row is updated (no duplicate), `200` returned, and `delivered` is **not** reset.
 - **S19 – Retry.** Given the same payload is sent twice, Then only one order exists.
 - **S20 – No external_id.** Given `external_id` is omitted, Then a new order is always created.
-- **S21 – Validation.** Missing `customer_name`, `quantity <= 0` or non-integer, bad date format, or `message` > 2000 chars → `422` with `{ "error": "validation_failed", "fields": { ... } }`.
+- **S21 – Validation.** Missing `customer_name`, `quantity <= 0` or non-integer, bad date format, `placed_at` not a date-time with offset, or `message` > 2000 chars → `422` with `{ "error": "validation_failed", "fields": { ... } }`.
 - **S22 – Bad auth.** Missing/invalid/revoked key → `401`. Wrong method → `405`.
 - **S23 – Update delivered order.** Given the order is already delivered and quantity changes, Then the update is applied and `delivered` stays true (staff can see it in the list).
 - **S24 – Realtime.** Given staff has that date open, When an order is created via the API, Then it appears in the list within ~2 s.

@@ -20,7 +20,7 @@ const open = ref<string | null>(null)
       </label>
       <span class="who">
         <span class="name">{{ o.customer_name }}<em v-if="o.pending" class="pend"> · pending</em></span>
-        <time class="time" :datetime="o.created_at">{{ formatTime(o.created_at) }}</time>
+        <time class="time" :datetime="o.placed_at">{{ formatTime(o.placed_at) }}</time>
       </span>
       <span class="c-qty">{{ o.quantity }}</span>
       <span class="msg">{{ o.message }}</span>

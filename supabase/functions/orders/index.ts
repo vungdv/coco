@@ -1,5 +1,6 @@
 // Order API for other systems. Auth: x-api-key (SHA-256 compared against api_keys).
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { validate } from './validate.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 const hits = new Map<string, { n: number; t: number }>() // best-effort per-isolate rate limit (S25)
@@ -14,18 +15,6 @@ const json = (status: number, body: unknown) =>
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-export function validate(b: Record<string, unknown>) {
-  const f: Record<string, string> = {}
-  if (typeof b.customer_name !== 'string' || !b.customer_name.trim()) f.customer_name = 'required'
-  if (!Number.isInteger(b.quantity) || (b.quantity as number) <= 0) f.quantity = 'must be a positive integer'
-  if (typeof b.delivery_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.delivery_date) ||
-      Number.isNaN(Date.parse(b.delivery_date))) f.delivery_date = 'must be YYYY-MM-DD'
-  if (b.message !== undefined && (typeof b.message !== 'string' || b.message.length > 2000)) f.message = 'max 2000 characters'
-  if (b.external_id !== undefined && b.external_id !== null && typeof b.external_id !== 'string') f.external_id = 'must be a string'
-  if (b.source !== undefined && (typeof b.source !== 'string' || !b.source)) f.source = 'must be a non-empty string'
-  return f
 }
 
 Deno.serve(async (req) => {
@@ -53,6 +42,8 @@ Deno.serve(async (req) => {
     quantity: body.quantity as number,
     message: (body.message as string | undefined) ?? '',
     delivery_date: body.delivery_date as string,
+    // omitted -> column default now() on insert, left unchanged on update
+    ...(body.placed_at !== undefined && { placed_at: new Date(body.placed_at as string).toISOString() }),
   } // `delivered` is intentionally never written here (S18, S23)
 
   let existed = false

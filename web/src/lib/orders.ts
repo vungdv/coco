@@ -7,15 +7,21 @@ export interface Order {
   delivered: boolean
   delivered_at: string | null
   created_at: string
+  placed_at: string // when the customer placed it (e.g. Zalo message time)
   pending?: boolean
 }
 
-export const ORDER_COLUMNS = 'id,customer_name,quantity,message,delivery_date,delivered,delivered_at,created_at'
+export const ORDER_COLUMNS = 'id,customer_name,quantity,message,delivery_date,delivered,delivered_at,created_at,placed_at'
 
-/** Undelivered first, then created_at ascending (§5.1). */
+/** Orders stored locally before placed_at existed (offline cache, demo data) fall back to created_at. */
+export function withPlacedAt(list: Array<Omit<Order, 'placed_at'> & { placed_at?: string }>): Order[] {
+  return list.map(o => ({ ...o, placed_at: o.placed_at ?? o.created_at }))
+}
+
+/** Undelivered first, then placed_at ascending (§5.1). */
 export function sortOrders(list: Order[]): Order[] {
   return [...list].sort((a, b) =>
-    Number(a.delivered) - Number(b.delivered) || a.created_at.localeCompare(b.created_at))
+    Number(a.delivered) - Number(b.delivered) || a.placed_at.localeCompare(b.placed_at))
 }
 
 export function summarize(list: Order[]) {

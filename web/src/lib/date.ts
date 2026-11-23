@@ -29,3 +29,8 @@ export function formatParts(date: string): { weekday: string; day: string } {
     day: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: TZ }).format(d),
   }
 }
+
+/** ISO timestamp → "HH:mm" (24h) in Vietnam time. */
+export function formatTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(new Date(iso))
+}

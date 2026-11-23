@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { Order } from '../lib/orders'
+import { formatTime } from '../lib/date'
 defineProps<{ orders: Order[]; disabled: boolean }>()
 defineEmits<{ toggle: [id: string] }>()
 const open = ref<string | null>(null)
@@ -17,7 +18,10 @@ const open = ref<string | null>(null)
           :aria-label="`Mark ${o.customer_name} delivered`" @change="$emit('toggle', o.id)" />
         <span class="box" />
       </label>
-      <span class="name">{{ o.customer_name }}<em v-if="o.pending" class="pend"> · pending</em></span>
+      <span class="who">
+        <span class="name">{{ o.customer_name }}<em v-if="o.pending" class="pend"> · pending</em></span>
+        <time class="time" :datetime="o.created_at">{{ formatTime(o.created_at) }}</time>
+      </span>
       <span class="c-qty">{{ o.quantity }}</span>
       <span class="msg">{{ o.message }}</span>
     </div>

@@ -24,6 +24,7 @@ const health = ref<boolean | null>(null)
 const tag = computed(() => intlTag[locale.value])
 const parts = computed(() => formatParts(date.value, tag.value))
 const isToday = computed(() => date.value === todayVN())
+const signedIn = computed(() => hasBackend && sessionState.value === 'ok')
 const isHealthRoute = location.hash.startsWith('#/health')
 
 onMounted(async () => {
@@ -34,7 +35,6 @@ onMounted(async () => {
 
 <template>
   <main class="page">
-    <LangSwitch />
     <p v-if="isHealthRoute" class="health">{{ t(!hasBackend ? 'health.demo' : health ? 'health.ok' : 'health.bad') }}</p>
 
     <div v-if="sessionState === 'loading'" class="center">{{ t('app.loading') }}</div>
@@ -75,12 +75,13 @@ onMounted(async () => {
         <p>{{ t('app.empty') }}</p>
       </div>
       <OrderTable v-else :orders="orders" :disabled="!online" @toggle="toggle" />
-
-      <footer v-if="hasBackend" class="foot">
-        <span v-if="health !== null" class="status" :class="{ bad: !health }">{{ t(health ? 'app.connected' : 'app.unreachable') }}</span>
-        <button class="link signout" @click="signOut">{{ t('app.signOut') }}</button>
-      </footer>
     </template>
+
+    <footer class="foot">
+      <span v-if="signedIn && health !== null" class="status" :class="{ bad: !health }">{{ t(health ? 'app.connected' : 'app.unreachable') }}</span>
+      <LangSwitch />
+      <button v-if="signedIn" class="link signout" @click="signOut">{{ t('app.signOut') }}</button>
+    </footer>
     <div v-if="toast" class="toast" role="status">{{ toast }}</div>
   </main>
 </template>

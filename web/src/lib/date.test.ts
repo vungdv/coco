@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatLong, isValidDate, todayVN } from './date'
+import { addDays, formatLong, formatParts, isValidDate, todayVN } from './date'
 
 describe('todayVN', () => {
   it('Given 17:30 UTC on 21 Nov, When computing today, Then Vietnam is already 22 Nov (S5)', () => {
@@ -16,5 +16,19 @@ describe('isValidDate', () => {
     expect(isValidDate('2026-13-45')).toBe(false)
     expect(isValidDate('abc')).toBe(false)
     expect(isValidDate('2026-11-21')).toBe(true)
+  })
+})
+describe('addDays', () => {
+  it('Given a date, When stepping to the next/previous day, Then it crosses month and year boundaries', () => {
+    expect(addDays('2026-11-30', 1)).toBe('2026-12-01')
+    expect(addDays('2027-01-01', -1)).toBe('2026-12-31')
+  })
+  it('Given a leap year, When stepping past 28 Feb, Then 29 Feb is not skipped', () => {
+    expect(addDays('2028-02-28', 1)).toBe('2028-02-29')
+  })
+})
+describe('formatParts', () => {
+  it('Given 2026-11-23, Then weekday and short day fit a 375px header', () => {
+    expect(formatParts('2026-11-23')).toEqual({ weekday: 'Monday', day: 'Nov 23, 2026' })
   })
 })

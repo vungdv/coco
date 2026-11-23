@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import OrderTable from './components/OrderTable.vue'
 import SkeletonRows from './components/SkeletonRows.vue'
 import { useDateRoute } from './composables/useRoute'
 import { useOrders } from './composables/useOrders'
 import { initSession, sessionState, signOut } from './composables/useSession'
-import { formatLong, todayVN } from './lib/date'
+
+import { addDays, formatLong, formatParts, todayVN } from './lib/date'
 import { checkHealth, hasBackend, supabaseRepo } from './lib/supabase'
 import { demoRepo } from './lib/demoRepo'
 
@@ -18,6 +19,8 @@ let toastTimer: ReturnType<typeof setTimeout>
 const showToast = (m: string) => { toast.value = m; clearTimeout(toastTimer); toastTimer = setTimeout(() => (toast.value = ''), 3500) }
 const { orders, summary, loading, error, online, reload, toggle } = useOrders(repo, date, showToast)
 const health = ref<boolean | null>(null)
+const parts = computed(() => formatParts(date.value))
+const isToday = computed(() => date.value === todayVN())
 const isHealthRoute = location.hash.startsWith('#/health')
 
 onMounted(async () => {
@@ -40,30 +43,39 @@ onMounted(async () => {
 
     <template v-else>
       <div v-if="!online" class="banner">You're offline — showing last loaded data</div>
-      <header class="top">
-        <div>
-          <h2 class="date">{{ formatLong(date) }}
-            <button v-if="date !== todayVN()" class="link" @click="setDate(todayVN())">Today</button>
-          </h2>
-          <p class="summary">
-            {{ summary.orders }} {{ summary.orders === 1 ? 'order' : 'orders' }} · {{ summary.portions }} portions · {{ summary.delivered }} delivered
-            <span v-if="repo.mode === 'demo'" class="demo">· demo data</span>
-          </p>
-        </div>
-        <label class="btn pick">Pick date
-          <input type="date" :value="date" aria-label="Pick date" @change="setDate(($event.target as HTMLInputElement).value)" />
+      <header class="datebar">
+        <button class="nav" aria-label="Previous day" @click="setDate(addDays(date, -1))">‹</button>
+        <label class="when">
+          <span class="eyebrow">{{ parts.weekday }}<span v-if="isToday" class="today"> · Today</span></span>
+          <span class="day">{{ parts.day }} <span class="caret" aria-hidden="true">▾</span></span>
+          <input type="date" :value="date" :aria-label="`Pick date, currently ${formatLong(date)}`"
+            @change="setDate(($event.target as HTMLInputElement).value)" />
         </label>
+        <button class="nav" aria-label="Next day" @click="setDate(addDays(date, 1))">›</button>
       </header>
+      <button v-if="!isToday" class="link back-today" @click="setDate(todayVN())">← Back to today</button>
+
+      <dl class="stats">
+        <div><dt>Orders</dt><dd>{{ summary.orders }}</dd></div>
+        <div><dt>Portions</dt><dd>{{ summary.portions }}</dd></div>
+        <div><dt>Delivered</dt><dd>{{ summary.delivered }}<small>/{{ summary.orders }}</small></dd></div>
+      </dl>
+      <p v-if="repo.mode === 'demo'" class="demo">Showing demo data</p>
 
       <SkeletonRows v-if="loading" />
       <div v-else-if="error" class="state">
         <p>{{ error }}</p><button class="btn" @click="reload">Retry</button>
       </div>
-      <p v-else-if="!orders.length" class="state">No orders for this day.</p>
+      <div v-else-if="!orders.length" class="state empty">
+        <span class="empty-icon" aria-hidden="true">🍲</span>
+        <p>No orders for this day.</p>
+      </div>
       <OrderTable v-else :orders="orders" :disabled="!online" @toggle="toggle" />
 
-      <button v-if="hasBackend" class="link signout" @click="signOut">Sign out</button>
-      <p v-if="health !== null && hasBackend" class="foot">{{ health ? 'Supabase connected' : 'Supabase unreachable' }}</p>
+      <footer v-if="hasBackend" class="foot">
+        <span v-if="health !== null" class="status" :class="{ bad: !health }">{{ health ? 'Connected' : 'Server unreachable' }}</span>
+        <button class="link signout" @click="signOut">Sign out</button>
+      </footer>
     </template>
     <div v-if="toast" class="toast" role="status">{{ toast }}</div>
   </main>

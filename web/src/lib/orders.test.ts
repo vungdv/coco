@@ -17,8 +17,12 @@ describe('sortOrders', () => {
   })
 })
 describe('summarize', () => {
-  it('counts orders, portions and delivered', () => {
-    expect(summarize([o('a', true, '1', 5), o('b', false, '2', 2)])).toEqual({ orders: 2, portions: 7, delivered: 1 })
+  it('Given one delivered and one pending order, Then it counts total and remaining orders and portions', () => {
+    expect(summarize([o('a', true, '1', 5), o('b', false, '2', 2)])).toEqual({ orders: 2, ordersLeft: 1, portions: 7, portionsLeft: 2 })
+  })
+  it('Given every order delivered, Then nothing remains', () => {
+    const s = summarize([o('a', true, '1', 5), o('b', true, '2', 3)])
+    expect([s.ordersLeft, s.portionsLeft]).toEqual([0, 0])
   })
 })
 describe('withPlacedAt', () => {

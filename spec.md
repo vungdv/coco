@@ -67,7 +67,7 @@ Constraints / indexes
   - Header row (grey background, uppercase small bold labels): *(checkbox column, no label)*, `NAME`, `QTY.`, `MESSAGE`.
   - One row per order: rounded-square checkbox, name, quantity, message. Rows separated by a thin divider.
   - Order of rows: `delivered = false` first, then by `placed_at` ascending; delivered rows move to the bottom, with muted text and strikethrough on name.
-- **Summary (addition to reference):** below the title, `N orders · M portions · K delivered` for the selected date.
+- **Summary (addition to reference):** below the title, `R/N orders · S/M portions` for the selected date: N and M are total orders and portions; R and S are the orders and portions still to deliver (undelivered orders only).
 - Desktop: same layout, centered with `max-width: ~720px`.
 
 ### 5.2 Interactions

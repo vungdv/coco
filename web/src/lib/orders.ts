@@ -24,11 +24,14 @@ export function sortOrders(list: Order[]): Order[] {
     Number(a.delivered) - Number(b.delivered) || a.placed_at.localeCompare(b.placed_at))
 }
 
+/** Totals for the day, plus what is still left to deliver (undelivered orders only). */
 export function summarize(list: Order[]) {
+  const left = list.filter(o => !o.delivered)
   return {
     orders: list.length,
+    ordersLeft: left.length,
     portions: list.reduce((n, o) => n + o.quantity, 0),
-    delivered: list.filter(o => o.delivered).length,
+    portionsLeft: left.reduce((n, o) => n + o.quantity, 0),
   }
 }
 

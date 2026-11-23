@@ -60,9 +60,8 @@ onMounted(async () => {
       <button v-if="!isToday" class="link back-today" @click="setDate(todayVN())">{{ t('app.backToday') }}</button>
 
       <dl class="stats">
-        <div><dt>{{ t('stats.orders') }}</dt><dd>{{ summary.orders }}</dd></div>
-        <div><dt>{{ t('stats.portions') }}</dt><dd>{{ summary.portions }}</dd></div>
-        <div><dt>{{ t('stats.delivered') }}</dt><dd>{{ summary.delivered }}<small>/{{ summary.orders }}</small></dd></div>
+        <div><dt>{{ t('stats.orders') }}</dt><dd>{{ summary.ordersLeft }}<small>/{{ summary.orders }}</small></dd></div>
+        <div><dt>{{ t('stats.portions') }}</dt><dd>{{ summary.portionsLeft }}<small>/{{ summary.portions }}</small></dd></div>
       </dl>
       <p v-if="repo.mode === 'demo'" class="demo">{{ t('app.demoData') }}</p>
 

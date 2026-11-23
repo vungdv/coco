@@ -89,7 +89,7 @@ Constraints / indexes
 
 ### 5.4 Accessibility & i18n
 - Checkboxes are real `<input type="checkbox">` with accessible label `Mark {name} delivered`; min tap target 44×44 px.
-- UI languages: English and Vietnamese (strings in `web/src/i18n/messages.ts`; the copy quoted in this spec is the English version). An EN/VI toggle at the top of every screen (login included) switches language instantly and is remembered on the device; first visit follows the browser language, falling back to English. `<html lang>` follows the active language.
+- UI languages: English and Vietnamese (strings in `web/src/i18n/messages.ts`; the copy quoted in this spec is the English version). An EN/VI toggle in the footer of every screen (login included, beside Sign out when signed in) switches language instantly and is remembered on the device; first visit follows the browser language, falling back to English. `<html lang>` follows the active language.
 - Data content must render Vietnamese diacritics correctly (UTF-8 end-to-end); order data (names, messages) is never translated.
 - Dates formatted with `Intl.DateTimeFormat` in the active locale (`en-US` / `vi-VN`), always with `timeZone: 'Asia/Ho_Chi_Minh'`; order times stay 24h `HH:mm` in both languages.
 

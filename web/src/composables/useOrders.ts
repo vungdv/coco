@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
+import type { MessageKey } from '../i18n'
 import { retry, sortOrders, summarize, withPlacedAt, type Order, type OrderRepo } from '../lib/orders'
 
 const cacheKey = (d: string) => `bpb:orders:${d}`
@@ -10,10 +11,10 @@ function writeCache(d: string, o: Order[]) {
   try { localStorage.setItem(cacheKey(d), JSON.stringify(o)) } catch { /* ignore */ }
 }
 
-export function useOrders(repo: OrderRepo, date: Ref<string>, onToast: (m: string) => void) {
+export function useOrders(repo: OrderRepo, date: Ref<string>, onToast: (key: MessageKey) => void) {
   const orders = ref<Order[]>([])
   const loading = ref(true)
-  const error = ref<string | null>(null)
+  const error = ref<MessageKey | null>(null) // a message key, so it re-renders on language change
   const online = ref(navigator.onLine)
   const versions = new Map<string, number>() // last tap wins (S12)
   let unsub: (() => void) | null = null
@@ -37,7 +38,7 @@ export function useOrders(repo: OrderRepo, date: Ref<string>, onToast: (m: strin
       orders.value = fresh.map(o => pending.get(o.id) ?? o)
       writeCache(d, fresh)
     } catch {
-      if (seq === loadSeq && !cached) error.value = "Couldn't load orders."
+      if (seq === loadSeq && !cached) error.value = 'orders.loadFailed'
     } finally {
       if (seq === loadSeq) loading.value = false
     }
@@ -68,7 +69,7 @@ export function useOrders(repo: OrderRepo, date: Ref<string>, onToast: (m: strin
       o.delivered = prev.delivered
       o.delivered_at = prev.delivered_at
       o.pending = false
-      onToast("Couldn't update. Try again.")
+      onToast('orders.updateFailed')
     }
   }
 

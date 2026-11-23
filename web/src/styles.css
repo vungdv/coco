@@ -83,3 +83,6 @@ body {
 .skel .bar { height: 16px; margin-top: 12px; border-radius: 6px; background: var(--head); animation: pulse 1.2s infinite alternate; }
 @keyframes pulse { to { opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+.lang { display: flex; justify-content: flex-end; gap: 2px; margin: -12px 0 2px; }
+.lang button { min-width: 44px; min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--head); color: var(--fg); }

@@ -10,6 +10,9 @@ describe('formatLong', () => {
   it('Given 2026-11-21, Then long English format (S3)', () => {
     expect(formatLong('2026-11-21')).toBe('Saturday, November 21, 2026')
   })
+  it('Given 2026-11-21 and the vi-VN locale, Then long Vietnamese format', () => {
+    expect(formatLong('2026-11-21', 'vi-VN')).toBe('Thứ Bảy, 21 tháng 11, 2026')
+  })
 })
 describe('isValidDate', () => {
   it('rejects malformed values that could come from the URL', () => {
@@ -30,6 +33,9 @@ describe('addDays', () => {
 describe('formatParts', () => {
   it('Given 2026-11-23, Then weekday and short day fit a 375px header', () => {
     expect(formatParts('2026-11-23')).toEqual({ weekday: 'Monday', day: 'Nov 23, 2026' })
+  })
+  it('Given 2026-11-23 and the vi-VN locale, Then Vietnamese weekday and day-first short date', () => {
+    expect(formatParts('2026-11-23', 'vi-VN')).toEqual({ weekday: 'Thứ Hai', day: '23 thg 11, 2026' })
   })
 })
 describe('formatTime', () => {

@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import type { MessageKey } from '../i18n'
 import { hasBackend, supabase } from '../lib/supabase'
 
 export type SessionState = 'loading' | 'signedout' | 'denied' | 'setpassword' | 'ok'
@@ -20,9 +21,10 @@ export function initSession() {
   supabase.auth.onAuthStateChange((_e, s) => apply(s?.user)) // token refresh is silent (S15)
 }
 
-export async function signIn(email: string, password: string): Promise<string | null> {
+/** Resolves to a message key on failure, null on success. */
+export async function signIn(email: string, password: string): Promise<MessageKey | null> {
   const { error } = await supabase!.auth.signInWithPassword({ email, password })
-  return error ? 'Invalid email or password' : null
+  return error ? 'login.invalid' : null
 }
 
 export async function signOut() { await supabase?.auth.signOut() }

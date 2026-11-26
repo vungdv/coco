@@ -3,7 +3,7 @@ begin;
 select plan(5);
 create temp table n as select count(*)::int as orders, (select count(*)::int from public.order_lines) as lines from public.orders;
 grant select on n to anon, authenticated;
-select public.place_order_line('t', 1, current_date);
+select public.place_order_line(current_date, p_customer_name => 't', p_quantity => 1);
 set local role anon;
 select is((select count(*) from public.orders)::int, 0, 'anon sees zero orders');
 select is((select count(*) from public.order_lines)::int, 0, 'anon sees zero order lines');

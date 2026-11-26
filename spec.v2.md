@@ -62,14 +62,15 @@ Index: `(delivery_date, customer_key) where not delivered` is **unique**, which 
 - RLS: staff `select`. There are no client insert, update or delete grants. An `UPDATE` trigger rejects every change, which enforces D3.
 - All writes go through `public.place_order_line(...)` (security definer, executable only by `service_role`). It takes a per-(customer, day) advisory lock, finds or creates the open order, computes the delta, and inserts the line, all in one transaction. Two concurrent messages from the same customer therefore can't both read the same `sum`.
 
-### Migration (forward-only)
-`20261126000000_order_lines.sql`:
-1. Create `order_lines`.
-2. Copy every v1 order into exactly one line (`op='add'`, same quantity, message, placed_at, source, external_id), keeping the order id.
-3. Set `customer_key = 'name:' || lower(trim(customer_name))`.
-4. Drop the moved columns.
+### Migrations (forward-only)
+- `20261126000000_order_lines.sql` (step 1):
+  1. Create `order_lines`.
+  2. Copy every v1 order into exactly one line (`op='add'`, same quantity, message, placed_at, source, external_id), keeping the order id.
+  3. Set `customer_key = 'name:' || lower(trim(customer_name))`.
+  4. Drop the moved columns.
 
-Existing orders are **not merged**, so v1 data looks the same after the migration. Two open v1 orders for the same customer and day would violate the unique open-order index. For those, the migration keeps the oldest open order and moves the other orders' lines into it. Their sums are unchanged.
+  Orders are **not merged** and `place_order_line` creates one order per line, so the screen is unchanged (V18).
+- `20261126010000_order_adjustments.sql` (step 2): merges each customer's open orders for a day into the oldest one by re-parenting their lines (totals unchanged), adds the unique open-order index (D2), and replaces `place_order_line` with the `op`/`customer_id` version.
 
 ## 4. Order API (`POST /functions/v1/orders`)
 These fields are added to the v1 request. All of them are optional, so v1 callers are unchanged:

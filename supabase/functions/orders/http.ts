@@ -7,11 +7,13 @@ export const problem = (status: number, title: string, extra: Record<string, unk
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
-export type PlaceResult = { status: 'created' | 'replayed' | 'conflict'; order: Record<string, unknown>; line: unknown }
+export type PlaceResult = { status: 'created' | 'replayed' | 'conflict' | 'no_open_order'; order: Record<string, unknown> | null; line: unknown }
 
-/** Map the DB outcome to HTTP (spec v2 §4): 201 new line, 200 replay, 409 idempotency conflict. */
+/** Map the DB outcome to HTTP (spec v2 §4): 201 new line, 200 replay, 409 idempotency conflict / nothing to adjust. */
 export function respond({ status, order, line }: PlaceResult): Response {
   if (status === 'conflict') return problem(409, 'Conflict', {
     error: 'idempotency_conflict', detail: 'external_id was already used with different content', order, line })
+  if (status === 'no_open_order') return problem(409, 'Conflict', {
+    error: 'no_open_order', detail: 'this customer has no open order for that delivery_date to adjust' })
   return json(status === 'created' ? 201 : 200, { ...order, line })
 }

@@ -46,22 +46,40 @@ export function normalize(raw: RawOrder): Order {
   }
 }
 
-/** Undelivered first, then placed_at ascending (§5.1). */
+/** D7: an undelivered order whose lines sum to 0 was cancelled by the customer. */
+export const isCancelled = (o: Order) => !o.delivered && o.quantity <= 0
+
+const rank = (o: Order) => (isCancelled(o) ? 2 : o.delivered ? 1 : 0)
+
+/** Open first, then delivered, then cancelled; each group by placed_at ascending (§5.1, spec v2 §5). */
 export function sortOrders(list: Order[]): Order[] {
-  return [...list].sort((a, b) =>
-    Number(a.delivered) - Number(b.delivered) || a.placed_at.localeCompare(b.placed_at))
+  return [...list].sort((a, b) => rank(a) - rank(b) || a.placed_at.localeCompare(b.placed_at))
 }
 
-/** Totals for the day, plus what is still left to deliver (undelivered orders only). */
+/** Counts customer orders, not lines; cancelled orders count for nothing (spec v2 §5, V16). */
 export function summarize(list: Order[]) {
-  const left = list.filter(o => !o.delivered)
+  const active = list.filter(o => o.quantity > 0)
+  const left = active.filter(o => !o.delivered)
   return {
-    orders: list.length,
+    orders: active.length,
     ordersLeft: left.length,
-    portions: list.reduce((n, o) => n + o.quantity, 0),
+    portions: active.reduce((n, o) => n + o.quantity, 0),
     portionsLeft: left.reduce((n, o) => n + o.quantity, 0),
   }
 }
+
+/** Short delta shown before a line's message: +5, −2, =3, ✕. */
+export function lineLabel(l: OrderLine): string {
+  switch (l.op) {
+    case 'add': return `+${l.quantity}`
+    case 'reduce': return `−${-l.quantity}`
+    case 'set': return `=${l.requested_quantity}`
+    case 'cancel': return '✕'
+  }
+}
+
+/** A lone add line reads like a v1 order: just the message, no delta. */
+export const showLines = (o: Order) => !(o.lines.length === 1 && o.lines[0].op === 'add')
 
 /** Data-access seam: Supabase in production, localStorage demo when no backend is configured. */
 export interface OrderRepo {

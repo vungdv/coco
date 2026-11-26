@@ -62,6 +62,13 @@ body {
 .row.open .msg { display: block; }
 .row.done { color: var(--muted); }
 .row.done .name { text-decoration: line-through; }
+.row.cancelled { color: var(--muted); }
+.row.cancelled .name { text-decoration: line-through; }
+.tag { font-style: normal; font-size: .75rem; font-weight: 600; }
+.row .msg.lines { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; overflow: visible; }
+.delta { font-variant-numeric: tabular-nums; margin-right: 2px; }
+.delta.reduce, .delta.cancel { color: #b42318; }
+.row.done .delta, .row.cancelled .delta { color: inherit; }
 .who { display: grid; gap: 2px; }
 .time { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pend { font-style: normal; font-size: .75rem; color: var(--muted); }

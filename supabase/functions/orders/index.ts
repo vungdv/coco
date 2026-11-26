@@ -29,11 +29,13 @@ Deno.serve(async (req) => {
   const fields = validate(body ?? {})
   if (Object.keys(fields).length) return problem(422, 'Validation failed', { error: 'validation_failed', fields })
 
-  // All writes go through one transactional DB function (spec v2 §3): find/create order, append line.
+  // All writes go through one transactional DB function (spec v2 §3): lock, find/create the open order, append a line.
   const { data, error } = await db.rpc('place_order_line', {
-    p_customer_name: (body.customer_name as string).trim(),
-    p_quantity: body.quantity as number,
     p_delivery_date: body.delivery_date as string,
+    p_op: (body.op as string | undefined) ?? 'add',
+    p_quantity: (body.quantity as number | undefined) ?? null,
+    p_customer_name: (body.customer_name as string | undefined)?.trim() ?? null,
+    p_customer_id: (body.customer_id as string | undefined)?.trim() ?? null,
     p_source: (body.source as string | undefined) ?? 'api',
     p_external_id: (body.external_id as string | null | undefined) ?? null,
     p_message: (body.message as string | undefined) ?? '',

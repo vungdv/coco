@@ -17,3 +17,7 @@ Deno.test('Given the same key with different content, Then 409 Problem Details i
   assertEquals([r.status, r.headers.get('content-type')], [409, 'application/problem+json'])
   assertEquals((await r.json()).error, 'idempotency_conflict')
 })
+Deno.test('Given an adjustment with no open order, Then 409 no_open_order so the reader knows nothing changed (V9, D6)', async () => {
+  const r = respond({ status: 'no_open_order', order: null, line: null })
+  assertEquals([r.status, (await r.json()).error], [409, 'no_open_order'])
+})

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { ORDER_COLUMNS, type Order, type OrderRepo, withTimeout } from './orders'
+import { ORDER_COLUMNS, normalize, type OrderRepo, withTimeout } from './orders'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -11,9 +11,9 @@ export const supabaseRepo: OrderRepo = {
   mode: 'supabase',
   async list(date) {
     const { data, error } = await withTimeout(
-      supabase!.from('orders').select(ORDER_COLUMNS).eq('delivery_date', date).order('placed_at').limit(500))
+      supabase!.from('orders').select(ORDER_COLUMNS).eq('delivery_date', date).order('created_at').limit(500))
     if (error) throw error
-    return data as Order[]
+    return (data as unknown as Parameters<typeof normalize>[0][]).map(normalize)
   },
   async setDelivered(id, delivered) {
     const { error } = await withTimeout(supabase!.rpc('set_delivered', { p_id: id, p_delivered: delivered }))

@@ -11,3 +11,4 @@ See [spec.md](spec.md). Live: https://vungdv.github.io/coco/
 3. Create staff users with `app_metadata: {"role":"staff"}` (Auth dashboard / admin API).
 4. Create an API key: insert `encode(sha256('<secret>'::bytea),'hex')` into `api_keys.key_hash`, then
    `curl -X POST $URL/functions/v1/orders -H "x-api-key: <secret>" -d '{"customer_name":"A","quantity":2,"delivery_date":"2026-11-22"}'`.
+   Adjust with `"op": "reduce" | "set" | "cancel"` (and optional `"customer_id"`); see [spec.v2.md](spec.v2.md) §4.

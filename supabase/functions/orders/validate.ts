@@ -1,12 +1,24 @@
-// Request validation for the Order API (S21). Pure: no I/O, so it can be unit tested.
+// Request validation for the Order API (v1 S21, spec v2 §4). Pure: no I/O, so it can be unit tested.
 
 // RFC 3339 date-time with an explicit offset; a zone-less time would be read in the server's zone.
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/i
 
+export const OPS = ['add', 'reduce', 'set', 'cancel'] as const
+export type Op = typeof OPS[number]
+
 export function validate(b: Record<string, unknown>) {
   const f: Record<string, string> = {}
-  if (typeof b.customer_name !== 'string' || !b.customer_name.trim()) f.customer_name = 'required'
-  if (!Number.isInteger(b.quantity) || (b.quantity as number) <= 0) f.quantity = 'must be a positive integer'
+  const op = b.op ?? 'add'
+  if (!OPS.includes(op as Op)) f.op = `must be one of ${OPS.join(', ')}`
+  const hasName = typeof b.customer_name === 'string' && !!b.customer_name.trim()
+  if (b.customer_name !== undefined && !hasName) f.customer_name = 'must be a non-empty string'
+  if (b.customer_id !== undefined && (typeof b.customer_id !== 'string' || !b.customer_id.trim())) f.customer_id = 'must be a non-empty string'
+  if (op === 'add' && !hasName) f.customer_name = 'required'
+  else if (!hasName && b.customer_id === undefined) f.customer_name = 'customer_name or customer_id is required'
+  const q = b.quantity as number
+  if (op === 'cancel') { if (b.quantity !== undefined && b.quantity !== null) f.quantity = 'must be omitted for cancel' }
+  else if (op === 'set') { if (!Number.isInteger(q) || q < 0) f.quantity = 'must be a non-negative integer' }
+  else if (!Number.isInteger(q) || q <= 0) f.quantity = 'must be a positive integer'
   if (typeof b.delivery_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.delivery_date) ||
       Number.isNaN(Date.parse(b.delivery_date))) f.delivery_date = 'must be YYYY-MM-DD'
   if (b.message !== undefined && (typeof b.message !== 'string' || b.message.length > 2000)) f.message = 'max 2000 characters'

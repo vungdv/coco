@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { sortOrders, summarize, withPlacedAt, type Order } from './orders'
+import { normalize, sortOrders, summarize, type Order } from './orders'
 
-const o = (id: string, delivered: boolean, placed_at: string, quantity = 1, created_at = placed_at): Order => ({
-  id, customer_name: id, quantity, message: '', delivery_date: '2026-11-21', delivered, delivered_at: null, created_at, placed_at,
+const o = (id: string, delivered: boolean, placed_at: string, quantity = 1, created_at = placed_at): Order => normalize({
+  id, customer_name: id, delivery_date: '2026-11-21', delivered, delivered_at: null, created_at,
+  lines: [{ id: `${id}-1`, op: 'add', quantity, requested_quantity: quantity, message: '', placed_at }],
 })
 
 describe('sortOrders', () => {
@@ -25,12 +26,24 @@ describe('summarize', () => {
     expect([s.ordersLeft, s.portionsLeft]).toEqual([0, 0])
   })
 })
-describe('withPlacedAt', () => {
-  it('Given an order cached offline before placed_at existed, Then it shows created_at instead of crashing on an invalid time', () => {
-    const { placed_at: _, ...old } = o('a', false, 'x', 1, '2026-11-21T01:00:00Z')
-    expect(withPlacedAt([old])[0].placed_at).toBe('2026-11-21T01:00:00Z')
+describe('normalize', () => {
+  it('Given an order cached offline in the v1 shape, Then it is read as one add line and keeps its total, message and time', () => {
+    const v1 = { id: 'a', customer_name: 'A', delivery_date: '2026-11-21', delivered: false, delivered_at: null,
+      created_at: '2026-11-21T05:00:00Z', quantity: 5, message: 'Em 5 suất', placed_at: '2026-11-21T00:10:00Z' }
+    const n = normalize(v1)
+    expect([n.quantity, n.placed_at, n.lines.length, n.lines[0].op, n.lines[0].message]).toEqual([5, '2026-11-21T00:10:00Z', 1, 'add', 'Em 5 suất'])
   })
-  it('Given an order that has placed_at, Then it is kept', () => {
-    expect(withPlacedAt([o('a', false, '2026-11-21T00:10:00Z', 1, '2026-11-21T05:00:00Z')])[0].placed_at).toBe('2026-11-21T00:10:00Z')
+  it('Given a v1 cached order without placed_at, Then it shows created_at instead of crashing on an invalid time', () => {
+    const n = normalize({ id: 'a', customer_name: 'A', delivery_date: 'd', delivered: false, delivered_at: null, created_at: '2026-11-21T01:00:00Z', quantity: 1 })
+    expect(n.placed_at).toBe('2026-11-21T01:00:00Z')
+  })
+  it('Given a Supabase row with unordered order_lines, Then lines are sorted by time, total is their sum and the row time is the first line', () => {
+    const n = normalize({ id: 'a', customer_name: 'A', delivery_date: 'd', delivered: false, delivered_at: null, created_at: 'c',
+      order_lines: [
+        { id: '2', op: 'reduce', quantity: -2, requested_quantity: 2, message: 'bớt 2', placed_at: '2026-11-21T02:00:00Z' },
+        { id: '1', op: 'add', quantity: 5, requested_quantity: 5, message: '5 suất', placed_at: '2026-11-21T01:00:00Z' },
+      ] })
+    expect([n.quantity, n.placed_at, n.lines.map(l => l.id)]).toEqual([3, '2026-11-21T01:00:00Z', ['1', '2']])
+    expect('order_lines' in n).toBe(false)
   })
 })

@@ -1,21 +1,49 @@
+export type LineOp = 'add' | 'reduce' | 'set' | 'cancel'
+
+/** One immutable customer message (spec v2 §3). `quantity` is the signed delta it applied. */
+export interface OrderLine {
+  id: string
+  op: LineOp
+  quantity: number
+  requested_quantity: number | null
+  message: string
+  placed_at: string // when the customer sent it (e.g. Zalo message time)
+}
+
+/** One customer's order for a day; `quantity` and `placed_at` are derived from its lines. */
 export interface Order {
   id: string
   customer_name: string
-  quantity: number
-  message: string
   delivery_date: string
   delivered: boolean
   delivered_at: string | null
   created_at: string
-  placed_at: string // when the customer placed it (e.g. Zalo message time)
+  lines: OrderLine[]   // placed_at ascending
+  quantity: number     // order total = sum of line deltas
+  placed_at: string    // first line's time
   pending?: boolean
 }
 
-export const ORDER_COLUMNS = 'id,customer_name,quantity,message,delivery_date,delivered,delivered_at,created_at,placed_at'
+export const ORDER_COLUMNS =
+  'id,customer_name,delivery_date,delivered,delivered_at,created_at,order_lines(id,op,quantity,requested_quantity,message,placed_at)'
 
-/** Orders stored locally before placed_at existed (offline cache, demo data) fall back to created_at. */
-export function withPlacedAt(list: Array<Omit<Order, 'placed_at'> & { placed_at?: string }>): Order[] {
-  return list.map(o => ({ ...o, placed_at: o.placed_at ?? o.created_at }))
+type RawOrder = Omit<Order, 'lines' | 'quantity' | 'placed_at'> & {
+  lines?: OrderLine[]; order_lines?: OrderLine[]
+  quantity?: number; message?: string; placed_at?: string // v1 shape (offline cache, old demo data)
+}
+
+/** Accepts a Supabase row, a cached Order, or a v1 order (read as one 'add' line) and derives totals. */
+export function normalize(raw: RawOrder): Order {
+  const { order_lines, lines: own, message, ...o } = raw
+  const lines = [...(own ?? order_lines ?? [{
+    id: `${o.id}:v1`, op: 'add' as const, quantity: o.quantity ?? 0, requested_quantity: o.quantity ?? 0,
+    message: message ?? '', placed_at: o.placed_at ?? o.created_at,
+  }])].sort((a, b) => a.placed_at.localeCompare(b.placed_at))
+  return {
+    ...o, lines,
+    quantity: lines.reduce((n, l) => n + l.quantity, 0),
+    placed_at: lines[0]?.placed_at ?? o.created_at,
+  }
 }
 
 /** Undelivered first, then placed_at ascending (§5.1). */

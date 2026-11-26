@@ -1,11 +1,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
 import type { MessageKey } from '../i18n'
-import { retry, sortOrders, summarize, withPlacedAt, type Order, type OrderRepo } from '../lib/orders'
+import { retry, sortOrders, summarize, normalize, type Order, type OrderRepo } from '../lib/orders'
 
 const cacheKey = (d: string) => `bpb:orders:${d}`
 
 function readCache(d: string): Order[] | null {
-  try { const r = localStorage.getItem(cacheKey(d)); return r ? withPlacedAt(JSON.parse(r)) : null } catch { return null }
+  try { const r = localStorage.getItem(cacheKey(d)); return r ? JSON.parse(r).map(normalize) : null } catch { return null }
 }
 function writeCache(d: string, o: Order[]) {
   try { localStorage.setItem(cacheKey(d), JSON.stringify(o)) } catch { /* ignore */ }

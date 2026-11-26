@@ -24,7 +24,7 @@ const open = ref<string | null>(null)
         <time class="time" :datetime="o.placed_at">{{ formatTime(o.placed_at) }}</time>
       </span>
       <span class="c-qty">{{ o.quantity }}</span>
-      <span class="msg">{{ o.message }}</span>
+      <span class="msg">{{ o.lines.map(l => l.message).join('\n') }}</span>
     </div>
   </div>
 </template>

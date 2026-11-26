@@ -1,14 +1,15 @@
 import { todayVN } from './date'
-import { withPlacedAt, type Order, type OrderRepo } from './orders'
+import { normalize, type Order, type OrderRepo } from './orders'
 
 const KEY = 'bpb:demo-orders'
 
 function seed(): Order[] {
   const d = todayVN()
-  const mk = (i: number, n: string, q: number, m: string, placedVN: string): Order => ({
-    id: `demo-${i}`, customer_name: n, quantity: q, message: m, delivery_date: d,
+  const mk = (i: number, n: string, q: number, m: string, placedVN: string): Order => normalize({
+    id: `demo-${i}`, customer_name: n, delivery_date: d,
     delivered: false, delivered_at: null, created_at: new Date(Date.now() + i * 1000).toISOString(),
-    placed_at: new Date(`${d}T${placedVN}:00+07:00`).toISOString(),
+    lines: [{ id: `demo-${i}-1`, op: 'add', quantity: q, requested_quantity: q, message: m,
+      placed_at: new Date(`${d}T${placedVN}:00+07:00`).toISOString() }],
   })
   return [
     mk(1, 'Honey', 5, 'Em 5 suất nhé 🍲', '07:15'),
@@ -20,7 +21,7 @@ function seed(): Order[] {
 function read(): Order[] {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return withPlacedAt(JSON.parse(raw))
+    if (raw) return JSON.parse(raw).map(normalize)
   } catch { /* ignore */ }
   const s = seed()
   write(s)

@@ -132,4 +132,10 @@ v1 S1–S17 and S19–S34 still apply. S18 is replaced by V5, and S23 by V8.
 | 1. Migrate the data model, no feature change | Migration (§3). `place_order_line` supports only `add`. The Edge Function calls it. The UI reads `orders` with embedded `order_lines` and renders exactly as v1. The one unavoidable API change is D4: an immutable line can't be updated in place, so S18 becomes replay or 409. | V18, V1, V5, V13 pass. The v1 UI and API tests are green. |
 | 2. App logic & UI | `op`/`customer_id` in the API and function. Rows per order with multi-line messages and totals. Counts by order. Cancelled state. | V2–V12, V14–V17 pass. Demo data shows an adjusted order. |
 
+### Rollout (the app is live: no step may break the running version)
+Expand/contract. The step 1 migration adds computed fields `quantity`, `message` and `placed_at` on `orders`, so web clients built before v2 keep reading the old columns. Run the steps in this order:
+1. `supabase db push`, immediately followed by `supabase functions deploy orders`. In the seconds between the two, the old Edge Function returns 500 and the Zalo reader retries. The old web keeps working.
+2. Merge to `main`. CI deploys the new web. Doing this before step 1 breaks the new web, because `order_lines` doesn't exist yet.
+3. Contract (later, separate migration): drop the `quantity`/`message`/`placed_at(orders)` compat functions once no tab is running a pre-v2 build.
+
 Tests: pgTAP (`supabase/tests/*.sql`) for ledger math, D2, D4–D7 and immutability; Deno unit tests for request validation; Vitest for `summarize` and `sortOrders` and for formatting lines.

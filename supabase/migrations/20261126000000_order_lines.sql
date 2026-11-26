@@ -29,6 +29,20 @@ alter table public.orders
   drop column source, drop column external_id, drop column quantity, drop column message, drop column placed_at;
 create index orders_day_idx on public.orders (delivery_date, delivered);
 
+-- Expand/contract: web clients deployed before spec v2 still select quantity, message and placed_at on
+-- orders (and order by placed_at). PostgREST serves these functions as computed fields, so those clients
+-- keep working during and after the rollout. Drop them in a later migration once no v1 client remains.
+create function public.quantity(public.orders) returns int language sql stable as $$
+  select coalesce(sum(l.quantity), 0)::int from public.order_lines l where l.order_id = $1.id
+$$;
+create function public.message(public.orders) returns text language sql stable as $$
+  select coalesce(string_agg(l.message, E'\n' order by l.placed_at) filter (where l.message <> ''), '')
+  from public.order_lines l where l.order_id = $1.id
+$$;
+create function public.placed_at(public.orders) returns timestamptz language sql stable as $$
+  select coalesce(min(l.placed_at), $1.created_at) from public.order_lines l where l.order_id = $1.id
+$$;
+
 -- D3: lines are append-only, for every role (V13).
 create function public.order_lines_immutable() returns trigger language plpgsql as $$
 begin raise exception 'order_lines are immutable' using errcode = '55000'; end $$;

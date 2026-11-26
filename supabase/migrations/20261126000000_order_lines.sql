@@ -20,10 +20,10 @@ create index order_lines_order_idx on public.order_lines (order_id, placed_at);
 insert into public.order_lines (order_id, source, external_id, op, requested_quantity, quantity, message, placed_at, created_at)
 select id, source, external_id, 'add', quantity, quantity, message, placed_at, created_at from public.orders;
 
--- D1: customer identity. v1 rows only have a name.
-alter table public.orders add column customer_key text;
-update public.orders set customer_key = 'name:' || lower(trim(customer_name));
-alter table public.orders alter column customer_key set not null;
+-- D1: customer identity. v1 rows only have a name, so it becomes their id.
+alter table public.orders add column customer_id text;
+update public.orders set customer_id = lower(trim(customer_name));
+alter table public.orders alter column customer_id set not null;
 
 alter table public.orders
   drop column source, drop column external_id, drop column quantity, drop column message, drop column placed_at;
@@ -67,13 +67,13 @@ create function public.place_order_line(
   p_placed_at timestamptz default null
 ) returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  v_key text := 'name:' || lower(trim(p_customer_name));
+  v_customer_id text := lower(trim(p_customer_name));
   v_line order_lines;
   v_order orders;
   v_status text := 'created';
 begin
   -- Serialise writes for one customer-day and one idempotency key.
-  perform pg_advisory_xact_lock(hashtext(v_key || '|' || p_delivery_date));
+  perform pg_advisory_xact_lock(hashtext(v_customer_id || '|' || p_delivery_date));
   if p_external_id is not null then
     perform pg_advisory_xact_lock(hashtext(p_source || '|' || p_external_id));
     select * into v_line from order_lines where source = p_source and external_id = p_external_id;
@@ -81,14 +81,14 @@ begin
       select * into v_order from orders where id = v_line.order_id;
       v_status := case when v_line.op = 'add' and v_line.requested_quantity = p_quantity
         and v_line.message = coalesce(p_message, '') and v_order.delivery_date = p_delivery_date
-        and v_order.customer_key = v_key and (p_placed_at is null or v_line.placed_at = p_placed_at)
+        and v_order.customer_id = v_customer_id and (p_placed_at is null or v_line.placed_at = p_placed_at)
         then 'replayed' else 'conflict' end;
       return jsonb_build_object('status', v_status, 'order', order_json(v_order.id), 'line', to_jsonb(v_line));
     end if;
   end if;
 
-  insert into orders (customer_key, customer_name, delivery_date)
-  values (v_key, trim(p_customer_name), p_delivery_date) returning * into v_order;
+  insert into orders (customer_id, customer_name, delivery_date)
+  values (v_customer_id, trim(p_customer_name), p_delivery_date) returning * into v_order;
   insert into order_lines (order_id, source, external_id, op, requested_quantity, quantity, message, placed_at)
   values (v_order.id, p_source, p_external_id, 'add', p_quantity, p_quantity, coalesce(p_message, ''),
           coalesce(p_placed_at, now()))

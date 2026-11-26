@@ -15,7 +15,7 @@ The kitchen sees **one row per customer order** with its running total and every
 ## 2. Decisions
 | # | Decision | Why |
 |---|---|---|
-| D1 | Customers are identified by `customer_key` = `id:<customer_id>` when the caller sends `customer_id` (e.g. the Zalo user id). Otherwise it is `name:<lower(trim(customer_name))>`. | Display names collide and change. Callers that send only a name keep working. |
+| D1 | Customers are identified by `orders.customer_id`: the caller's `customer_id` (e.g. the Zalo user id) when sent, otherwise `lower(trim(customer_name))`. | Display names collide and change. Callers that send only a name keep working. |
 | D2 | An **order** is one customer's open (undelivered) order for one `delivery_date`. A customer has at most one open order per day. When an `add` arrives and that day's order is already delivered, a **new order** is started, and the delivered one stays ticked. | The kitchen ticks off food that left the kitchen. New food is a new delivery. |
 | D3 | **Order lines are immutable** (append-only ledger). An adjustment is a new line with a signed quantity. The order total is `sum(order_lines.quantity)`. | This gives an audit trail of what the customer asked for and when. There are no lost updates. |
 | D4 | Replaying the same `(source, external_id)` with the same content is a no-op and returns `200` with the stored line. The same key with different content returns `409 Conflict`. This replaces v1 S18 (update in place). | Lines are immutable, and the reader already de-duplicates by message key. |
@@ -37,14 +37,14 @@ Line math (the open order's current total is `sum`; the line's `quantity` is the
 | Column | Notes |
 |---|---|
 | `id` uuid PK | unchanged ids, so v1 links and caches stay valid |
-| `customer_key` text not null | D1 |
+| `customer_id` text not null | D1; returned in API responses |
 | `customer_name` text not null | latest name seen for this customer |
 | `delivery_date` date not null | |
 | `delivered`, `delivered_at`, `delivered_by` | unchanged; `set_delivered()` is still the only UI write |
 | `created_at`, `updated_at` | `updated_at` is also bumped when a line is added, so Realtime on `orders` (filtered by `delivery_date`) fires |
 
 Removed from `orders`: `source`, `external_id`, `quantity`, `message`, `placed_at`. These move to lines.
-Index: `(delivery_date, customer_key) where not delivered` is **unique**, which enforces D2 (at most one open order).
+Index: `(delivery_date, customer_id) where not delivered` is **unique**, which enforces D2 (at most one open order).
 
 ### `order_lines` (immutable)
 | Column | Notes |
@@ -66,7 +66,7 @@ Index: `(delivery_date, customer_key) where not delivered` is **unique**, which 
 - `20261126000000_order_lines.sql` (step 1):
   1. Create `order_lines`.
   2. Copy every v1 order into exactly one line (`op='add'`, same quantity, message, placed_at, source, external_id), keeping the order id.
-  3. Set `customer_key = 'name:' || lower(trim(customer_name))`.
+  3. Set `customer_id = lower(trim(customer_name))`.
   4. Drop the moved columns.
 
   Orders are **not merged** and `place_order_line` creates one order per line, so the screen is unchanged (V18).

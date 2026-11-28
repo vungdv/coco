@@ -34,3 +34,9 @@ export function formatParts(date: string, locale = 'en-US'): { weekday: string; 
 export function formatTime(iso: string): string {
   return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(new Date(iso))
 }
+
+/** The date a command applies to, e.g. "Thứ Sáu, 28/11". */
+export function formatShortDay(date: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: TZ })
+    .format(new Date(`${date}T12:00:00+07:00`))
+}

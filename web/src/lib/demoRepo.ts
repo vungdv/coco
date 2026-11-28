@@ -31,7 +31,16 @@ function read(): Order[] {
   write(s)
   return s
 }
-function write(o: Order[]) { try { localStorage.setItem(KEY, JSON.stringify(o)) } catch { /* ignore */ } }
+function write(o: Order[]) {
+  try { localStorage.setItem(KEY, JSON.stringify(o)) } catch { /* ignore */ }
+}
+
+const listeners = new Set<() => void>()
+/** The demo's "database", shared with the fake Assistant; a write notifies the screen like Realtime does. */
+export const demoStore = {
+  read,
+  write(o: Order[]) { write(o); listeners.forEach(l => l()) },
+}
 
 export const demoRepo: OrderRepo = {
   mode: 'demo',
@@ -40,5 +49,5 @@ export const demoRepo: OrderRepo = {
     write(read().map(o => o.id === id
       ? { ...o, delivered, delivered_at: delivered ? new Date().toISOString() : null } : o))
   },
-  subscribe() { return () => {} },
+  subscribe(_date, onChange) { listeners.add(onChange); return () => { listeners.delete(onChange) } },
 }

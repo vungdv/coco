@@ -28,7 +28,7 @@ Each command applies to the **date shown on screen**. The chef sees the command 
 | E4 | The command's `delivery_date` is the date on screen when it was recorded. The LLM never parses dates. | It is deterministic and matches what the chef is looking at. |
 | E5 | Each resulting order line uses `source = 'voice'`, `external_id = <command id>`, `message = <transcript>`. | Re-processing a command is a no-op (v2 D4), and the row shows what the chef said. |
 | E6 | "*Name*, N suất" means **set N** if the customer has an open order that day, otherwise **add N**. The Assistant calls `op: set`; on `409 no_open_order` it calls `op: add` with the same key. "thêm N" = `add`, "bớt N" = `reduce`, "huỷ" = `cancel`, "xoá" = `delete`. | The chef says the number they want to see on screen. No new upsert op is needed. |
-| E7 | The spoken name is matched against that day's orders by the Assistant (case and word order ignored, e.g. "Hương Lê" = "Lê Hương"; rules in the [Assistant spec v3](/Users/vung.do/projects/zalo/zalo-order-assistant/spec.v3.md) V5). Exactly one match → use its `customer_id`. No match → `add` sends only `customer_name` (the backend keys it as `lower(trim(name))`, v2 D1), other ops **fail** (`not_found`). Two or more matches → **fail** (`ambiguous`), listing the candidates. | A wrong guess changes someone else's food. A failure is cheap: the chef says it again with the full name. The chef is expected to say the customer's Zalo name; when the names differ, the chef handles it (no automatic merge of customers). |
+| E7 | The spoken name is matched against that day's orders by the Assistant (case and word order ignored, e.g. "Hương Lê" = "Lê Hương"; only a **leading** honorific is dropped, so "Minh Anh" is not "Anh Minh"; rules in the [Assistant spec v3](/Users/vung.do/projects/zalo/zalo-order-assistant/spec.v3.md) V5). Exactly one match → use its `customer_id`. No match → `add` sends only `customer_name` (the backend keys it as `lower(trim(name))`, v2 D1), other ops **fail** (`not_found`). Two or more matches → **fail** (`ambiguous`), listing the candidates. | A wrong guess changes someone else's food. A failure is cheap: the chef says it again with the full name. The chef is expected to say the customer's Zalo name; when the names differ, the chef handles it (no automatic merge of customers). |
 | E8 | **Delete** is a new op: the order is hidden from the list and the counts, but its lines are kept (`orders.deleted_at`, `deleted_by`). **Cancel** stays as in v2 (total 0, shown muted). | Cancel = "the customer said no" (staff must see it). Delete = "this order should never have existed" (a mistake). Lines stay immutable (v2 D3). |
 | E9 | **Hold to talk** (variant B): the chef holds the bar while speaking and **releasing sends** the command. Sliding left before releasing cancels it. There is no review step. | One gesture, no second tap with busy hands. Misheard names are caught by the strict matching of E7 (a failure, not a wrong order), and the result bar says exactly what changed. |
 | E10 | A command left `queued` for more than 30 s is shown as "Trợ lý chưa nhận" (the Assistant hasn't picked it up). It stays queued and is processed when the Assistant comes back, unless the chef dismisses it (`dismissed`). | The Assistant runs on a separate machine that may be off. The chef must not think a command worked when it hasn't. |
@@ -69,6 +69,7 @@ Web: Realtime on orders updates the row; the result bar shows ✓ "Lê Hương =
 
 ### Migration (forward-only)
 `20261128000000_voice_commands.sql`: create `voice_commands` + RLS + Realtime; add `orders.deleted_at/deleted_by`; replace the open-order index; replace `place_order_line` with the `delete` version.
+`20261128010000_claim_own_delete.sql`: a re-claimed command still sees the order it deleted itself (W11).
 
 ## 6. APIs
 ### Order API (`POST /functions/v1/orders`), additive
@@ -137,3 +138,11 @@ Rollout: step 1 is additive (old web and the Assistant keep working): `supabase 
 
 ## 10. Results
 **Step 1 (2026-11-28), local stack only, not deployed.** pgTAP 73/73 (`supabase/tests/voice_commands.sql` covers W5, W11, W13–W15, E10). Deno 28/28. Against locally served functions: claim → add → `PATCH` → second `PATCH` 409 → empty claim 204, and delete 200 → replay 200 → `no_open_order` 409. 20 parallel claims on 20 commands returned 20 distinct ids (W13).
+
+**Steps 2 and 3 (2026-11-28), local only, not deployed.**
+- Tests: pgTAP 75/75, Deno 28/28, web Vitest 53/53, type check and build (38.9 KB gzipped).
+- Full stack (web → local Supabase → Assistant with `qwen2.5:7b-instruct`, microphone scripted): W1–W10, W12, W13, W15, W16, W18 behaved as written, plus W11 for a walk-in add and a delete. W14 and W17 are covered by pgTAP, Vitest and a demo-mode browser run. Result shown 1.6–4.1 s after release.
+- The web speech code is `web/src/lib/speech.ts` (not a `useSpeech` composable).
+- Fixed on the way, and **also present on `main`**: Realtime channels joined before the session was attached, so row level security dropped every event until the date was changed (`liveChannel` in `web/src/lib/supabase.ts`).
+- Not verified: real microphone and speech recognition on a phone (Chrome Android, iOS Safari), including hold gestures by touch.
+

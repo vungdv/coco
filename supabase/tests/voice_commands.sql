@@ -1,6 +1,6 @@
 -- spec v3 step 1: delete op (E8) and voice commands (W5, W11, W13–W15). Run: supabase test db
 begin;
-select plan(32);
+select plan(34);
 
 create function pg_temp.line(op text, q int, k text default null, n text default 'Hương') returns jsonb language sql as
   $$ select public.place_order_line('2030-02-01', op, q, n, null, 'voice', k) $$;
@@ -106,6 +106,21 @@ select is(public.claim_voice_command(), null, 'E10: a dismissed command is never
 set local role authenticated;
 select throws_ok($$ select public.claim_voice_command() $$, '42501', null, 'W15: staff cannot claim');
 reset role;
+
+-- W11: a re-claimed command still sees the order it deleted itself; other commands do not
+select pg_temp.line('add', 2, 'z0', 'Zed');
+set local role authenticated;
+insert into public.voice_commands (transcript, delivery_date) values ('Zed xoá đơn', '2030-02-01');
+reset role;
+select public.place_order_line('2030-02-01', 'delete', null, 'Zed', null, 'voice',
+  (select id::text from public.voice_commands where transcript = 'Zed xoá đơn'));
+select ok((public.claim_voice_command() -> 'orders') @> '[{"customer_id":"zed"}]',
+  'W11: the claim lists the order this command deleted');
+set local role authenticated;
+insert into public.voice_commands (transcript, delivery_date) values ('Zed 1 suất', '2030-02-01');
+reset role;
+select ok(not (public.claim_voice_command() -> 'orders') @> '[{"customer_id":"zed"}]',
+  'a different command does not see the deleted order');
 
 select * from finish();
 rollback;

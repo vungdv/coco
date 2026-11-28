@@ -48,3 +48,10 @@ Deno.test('Given an add with only customer_id, Then customer_name is required (t
 Deno.test('Given a reduce with neither name nor id, Then customer_name error', () => {
   assertEquals(Object.keys(validate({ op: 'reduce', quantity: 1, delivery_date: '2026-11-23' })), ['customer_name'])
 })
+
+// spec v3 §6: delete
+Deno.test('Given delete without a quantity, Then valid; with one, a field error, so a delete is never a partial change', () => {
+  const del = { op: 'delete', customer_id: 'zalo:1', delivery_date: '2026-11-28' }
+  assertEquals(validate(del), {})
+  assertEquals(Object.keys(validate({ ...del, quantity: 1 })), ['quantity'])
+})

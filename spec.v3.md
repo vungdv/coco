@@ -80,7 +80,7 @@ Web: Realtime on orders updates the row; the result bar shows ✓ "Lê Hương =
 | `POST /voice-commands/claim` | `200` `{command: {id, transcript, delivery_date, created_at}, orders: [{customer_id, customer_name, quantity, delivered}]}` for the oldest claimable command (atomic `for update skip locked`), or `204` if none. `orders` = that date's non-deleted orders: the context for E7. |
 | `PATCH /voice-commands/{id}` `{status: "done", result}` or `{status: "failed", result}` | `200` with the command. `409` if it is not `processing` (e.g. dismissed meanwhile). `422` on a bad body. |
 
-Errors are Problem Details (RFC 7807). `failed.result.error` is one of `not_understood`, `not_found`, `ambiguous`, `no_open_order`, `order_api_error`, `assistant_error` (the Assistant spec v3 §4.4 says when each is used).
+The contract is [openapi.yaml](supabase/functions/voice-commands/openapi.yaml). Errors are Problem Details (RFC 7807). `failed.result.error` is one of `not_understood`, `not_found`, `ambiguous`, `no_open_order`, `order_api_error`, `assistant_error` (the Assistant spec v3 §4.4 says when each is used).
 
 The Assistant polls `claim` every 2 s while it runs (a change in the other repo, done as its own step: §9 step 3).
 
@@ -133,4 +133,7 @@ v1 and v2 scenarios still apply.
 | 2. Web: talk bar, result bar | `useSpeech` (Web Speech API wrapper), `useVoiceCommands` (insert + Realtime), `TalkBar.vue` (hold, slide-to-cancel), `ListeningBubble.vue`, `CommandResults.vue`, `TypedCommand.vue` (fallback); 🎤 on voice lines; hide deleted orders; demo-mode fake Assistant. Vitest for the hold/release and result state machines and timers. | W16–W18 pass; demo mode shows the full flow. |
 | 3. Assistant (other repo) | [Assistant spec v3](/Users/vung.do/projects/zalo/zalo-order-assistant/spec.v3.md): poll `claim`, LLM extraction (`op`, name, quantity), name resolution (E7), Order API call (E6), `PATCH` the result. | W1–W4, W6–W10, W12 pass end to end against a staging project. |
 
-Rollout: step 1 is additive (old web and the Assistant keep working). Step 2 can ship before step 3: commands then wait in `queued` and show *Trợ lý chưa nhận* (E10), so hide the talk bar behind `VITE_VOICE=1` until step 3 is live.
+Rollout: step 1 is additive (old web and the Assistant keep working): `supabase db push`, then `supabase functions deploy orders voice-commands`. Until step 2 ships, the old web shows a deleted order as cancelled (total 0). Step 2 can ship before step 3: commands then wait in `queued` and show *Trợ lý chưa nhận* (E10), so hide the talk bar behind `VITE_VOICE=1` until step 3 is live.
+
+## 10. Results
+**Step 1 (2026-11-28), local stack only, not deployed.** pgTAP 73/73 (`supabase/tests/voice_commands.sql` covers W5, W11, W13–W15, E10). Deno 28/28. Against locally served functions: claim → add → `PATCH` → second `PATCH` 409 → empty claim 204, and delete 200 → replay 200 → `no_open_order` 409. 20 parallel claims on 20 commands returned 20 distinct ids (W13).

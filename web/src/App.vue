@@ -3,6 +3,14 @@ import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import OrderTable from './components/OrderTable.vue'
 import SkeletonRows from './components/SkeletonRows.vue'
 import LangSwitch from './components/LangSwitch.vue'
+import TalkBar from './components/TalkBar.vue'
+import TypedCommand from './components/TypedCommand.vue'
+import CommandResults from './components/CommandResults.vue'
+import { useVoiceCommands } from './composables/useVoiceCommands'
+import { speechCtor, type SpeechError } from './lib/speech'
+import { demoVoiceRepo } from './lib/demoVoice'
+import { supabaseVoiceRepo } from './lib/voiceRepo'
+import type { Tracked } from './lib/voice'
 import { intlTag, locale, t, type MessageKey } from './i18n'
 import { useDateRoute } from './composables/useRoute'
 import { useOrders } from './composables/useOrders'
@@ -21,6 +29,21 @@ let toastTimer: ReturnType<typeof setTimeout>
 const showToast = (key: MessageKey) => { toast.value = t(key); clearTimeout(toastTimer); toastTimer = setTimeout(() => (toast.value = ''), 3500) }
 const { orders, summary, loading, error, online, reload, toggle } = useOrders(repo, date, showToast)
 const health = ref<boolean | null>(null)
+
+// Voice commands (spec v3 §7). Off in production until the Assistant handles them (§9 rollout).
+const speech = speechCtor()
+const voiceOn = !!speech && (!hasBackend || import.meta.env.VITE_VOICE === '1')
+const { results, send, dismiss } = useVoiceCommands(hasBackend ? supabaseVoiceRepo : demoVoiceRepo, voiceOn)
+const micDenied = ref(false)
+const onSpeechError = (e: SpeechError) => { if (e === 'denied') micDenied.value = true; else showToast('voice.speechFailed') }
+const highlight = ref<string | null>(null)
+let highlightTimer: ReturnType<typeof setTimeout>
+function showOrder(r: Tracked) {
+  if (r.date !== date.value) setDate(r.date)
+  highlight.value = r.result?.order_id ?? null
+  clearTimeout(highlightTimer)
+  highlightTimer = setTimeout(() => (highlight.value = null), 2500)
+}
 const tag = computed(() => intlTag[locale.value])
 const parts = computed(() => formatParts(date.value, tag.value))
 const isToday = computed(() => date.value === todayVN())
@@ -34,7 +57,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page" :class="{ voice: voiceOn }">
     <p v-if="isHealthRoute" class="health">{{ t(!hasBackend ? 'health.demo' : health ? 'health.ok' : 'health.bad') }}</p>
 
     <div v-if="sessionState === 'loading'" class="center">{{ t('app.loading') }}</div>
@@ -59,6 +82,8 @@ onMounted(async () => {
       </header>
       <button v-if="!isToday" class="link back-today" @click="setDate(todayVN())">{{ t('app.backToday') }}</button>
 
+      <CommandResults v-if="voiceOn" :results="results" @dismiss="dismiss" @show="showOrder" />
+
       <dl class="stats">
         <div><dt>{{ t('stats.orders') }}</dt><dd>{{ summary.ordersLeft }}<small>/{{ summary.orders }}</small></dd></div>
         <div><dt>{{ t('stats.portions') }}</dt><dd>{{ summary.portionsLeft }}<small>/{{ summary.portions }}</small></dd></div>
@@ -73,7 +98,13 @@ onMounted(async () => {
         <span class="empty-icon" aria-hidden="true">🍲</span>
         <p>{{ t('app.empty') }}</p>
       </div>
-      <OrderTable v-else :orders="orders" :disabled="!online" @toggle="toggle" />
+      <OrderTable v-else :orders="orders" :disabled="!online" :highlight="highlight" @toggle="toggle" />
+
+      <template v-if="voiceOn">
+        <TypedCommand v-if="micDenied" :date="date" :disabled="!online" @send="send" />
+        <TalkBar v-else :speech="speech!" :date="date" :disabled="!online" @send="send"
+          @hint="showToast('voice.hintHold')" @error="onSpeechError" />
+      </template>
     </template>
 
     <footer class="foot">

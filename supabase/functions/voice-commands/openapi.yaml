@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Voice Command API
+  version: 1.0.0
+  description: The Assistant claims the chef's spoken commands and reports what it did (spec.v3.md §6).
+servers:
+  - url: /functions/v1
+security:
+  - apiKey: []
+paths:
+  /voice-commands/claim:
+    post:
+      summary: Claim the oldest queued command, or one claimed more than 2 minutes ago.
+      responses:
+        "200":
+          description: The command, and the delivery date's non-deleted orders for name matching.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        "204": { description: Nothing to claim. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+  /voice-commands/{id}:
+    patch:
+      summary: Record the outcome of a claimed command.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/Done"
+                - $ref: "#/components/schemas/Failed"
+      responses:
+        "200": { description: The updated command. }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/Problem" }
+        "500": { $ref: "#/components/responses/Problem" }
+components:
+  securitySchemes:
+    apiKey: { type: apiKey, in: header, name: x-api-key }
+  responses:
+    Problem:
+      description: Problem Details (RFC 7807).
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            properties:
+              type: { type: string }
+              title: { type: string }
+              status: { type: integer }
+              error: { type: string }
+              detail: { type: string }
+              fields: { type: object, additionalProperties: { type: string } }
+  schemas:
+    Claim:
+      type: object
+      required: [command, orders]
+      properties:
+        command:
+          type: object
+          required: [id, transcript, delivery_date, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            transcript: { type: string, maxLength: 500 }
+            delivery_date: { type: string, format: date }
+            created_at: { type: string, format: date-time }
+        orders:
+          type: array
+          items:
+            type: object
+            required: [customer_id, customer_name, quantity, delivered]
+            properties:
+              customer_id: { type: string }
+              customer_name: { type: string }
+              quantity: { type: integer }
+              delivered: { type: boolean }
+    Done:
+      type: object
+      required: [status, result]
+      properties:
+        status: { const: done }
+        result:
+          type: object
+          required: [op, order_id, customer_name, quantity, delta]
+          properties:
+            op: { enum: [add, reduce, set, cancel, delete] }
+            order_id: { type: string }
+            customer_name: { type: string }
+            quantity: { type: integer, description: Order total after the change. }
+            delta: { type: integer, description: The stored line's signed quantity. }
+    Failed:
+      type: object
+      required: [status, result]
+      properties:
+        status: { const: failed }
+        result:
+          type: object
+          required: [error]
+          properties:
+            error: { enum: [not_understood, not_found, ambiguous, no_open_order, order_api_error, assistant_error] }
+            detail: { type: string }
+            candidates: { type: array, items: { type: string } }

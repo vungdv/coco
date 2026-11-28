@@ -1,18 +1,27 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
+import MicIcon from './MicIcon.vue'
 import { isCancelled, lineLabel, showLines, type Order } from '../lib/orders'
 import { formatTime } from '../lib/date'
 import { t } from '../i18n'
-defineProps<{ orders: Order[]; disabled: boolean }>()
+const props = defineProps<{ orders: Order[]; disabled: boolean; highlight?: string | null }>()
 defineEmits<{ toggle: [id: string] }>()
 const open = ref<string | null>(null)
+const table = ref<HTMLElement>()
+// bring the order a voice command changed into view; also when its row arrives after the request
+watch(() => props.highlight && props.orders.some(o => o.id === props.highlight) ? props.highlight : null, async (id) => {
+  if (!id) return
+  await nextTick()
+  table.value?.querySelector(`[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}, { immediate: true })
 </script>
 <template>
-  <div class="card" role="table" :aria-label="t('orders.label')">
+  <div ref="table" class="card" role="table" :aria-label="t('orders.label')">
     <div class="row head" role="row">
       <span class="c-check" /><span>{{ t('orders.name') }}</span><span class="c-qty">{{ t('orders.qty') }}</span><span>{{ t('orders.message') }}</span>
     </div>
-    <div v-for="o in orders" :key="o.id" class="row" :class="{ done: o.delivered, cancelled: isCancelled(o), open: open === o.id }" role="row"
+    <div v-for="o in orders" :key="o.id" class="row" :data-id="o.id" role="row"
+      :class="{ done: o.delivered, cancelled: isCancelled(o), open: open === o.id, hl: highlight === o.id }"
       @click="open = open === o.id ? null : o.id">
       <label class="c-check" @click.stop>
         <input type="checkbox" :checked="o.delivered" :disabled="disabled || isCancelled(o)"
@@ -26,6 +35,7 @@ const open = ref<string | null>(null)
       <span class="c-qty">{{ o.quantity }}</span>
       <ul v-if="showLines(o)" class="msg lines">
         <li v-for="l in o.lines" :key="l.id">
+          <span v-if="l.source === 'voice'" class="by-voice" role="img" :aria-label="t('orders.voice')"><MicIcon :size="14" /></span>
           <b class="delta" :class="l.op">{{ lineLabel(l) }}</b> {{ l.message }}
           <time class="time" :datetime="l.placed_at">{{ formatTime(l.placed_at) }}</time>
         </li>

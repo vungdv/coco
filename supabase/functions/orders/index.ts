@@ -1,28 +1,17 @@
 // Order API for other systems. Auth: x-api-key (SHA-256 compared against api_keys).
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { apiKeyAuth } from '../_shared/auth.ts'
 import { validate } from './validate.ts'
 import { problem, respond, type PlaceResult } from './http.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-const hits = new Map<string, { n: number; t: number }>() // best-effort per-isolate rate limit (S25)
-
-async function sha256(s: string) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
-}
+const authenticate = apiKeyAuth(db, 60)
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return problem(405, 'Method Not Allowed', {}, { allow: 'POST' })
 
-  const key = req.headers.get('x-api-key')
-  if (!key) return problem(401, 'Unauthorized')
-  const hash = await sha256(key)
-  const { data: k } = await db.from('api_keys').select('id, revoked_at').eq('key_hash', hash).maybeSingle()
-  if (!k || k.revoked_at) return problem(401, 'Unauthorized')
-
-  const now = Date.now(), h = hits.get(k.id)
-  if (!h || now - h.t > 60_000) hits.set(k.id, { n: 1, t: now })
-  else if (++h.n > 60) return problem(429, 'Too Many Requests', {}, { 'retry-after': '60' })
+  const auth = await authenticate(req)
+  if (auth instanceof Response) return auth
 
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return problem(400, 'Malformed JSON') }
@@ -43,6 +32,6 @@ Deno.serve(async (req) => {
     p_placed_at: body.placed_at === undefined ? null : new Date(body.placed_at as string).toISOString(),
   }) // `delivered` is never written here (S23)
   if (error) return problem(500, 'Internal Server Error')
-  await db.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', k.id)
+  await db.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', auth.keyId)
   return respond(data as PlaceResult)
 })

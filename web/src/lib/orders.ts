@@ -1,4 +1,4 @@
-export type LineOp = 'add' | 'reduce' | 'set' | 'cancel'
+export type LineOp = 'add' | 'reduce' | 'set' | 'cancel' | 'delete'
 
 /** One immutable customer message (spec v2 §3). `quantity` is the signed delta it applied. */
 export interface OrderLine {
@@ -8,6 +8,7 @@ export interface OrderLine {
   requested_quantity: number | null
   message: string
   placed_at: string // when the customer sent it (e.g. Zalo message time)
+  source?: string   // 'voice' for the chef's commands; absent in older caches
 }
 
 /** One customer's order for a day; `quantity` and `placed_at` are derived from its lines. */
@@ -25,7 +26,7 @@ export interface Order {
 }
 
 export const ORDER_COLUMNS =
-  'id,customer_name,delivery_date,delivered,delivered_at,created_at,order_lines(id,op,quantity,requested_quantity,message,placed_at)'
+  'id,customer_name,delivery_date,delivered,delivered_at,created_at,order_lines(id,op,quantity,requested_quantity,message,placed_at,source)'
 
 type RawOrder = Omit<Order, 'lines' | 'quantity' | 'placed_at'> & {
   lines?: OrderLine[]; order_lines?: OrderLine[]
@@ -74,12 +75,13 @@ export function lineLabel(l: OrderLine): string {
     case 'add': return `+${l.quantity}`
     case 'reduce': return `−${-l.quantity}`
     case 'set': return `=${l.requested_quantity}`
-    case 'cancel': return '✕'
+    case 'cancel':
+    case 'delete': return '✕'
   }
 }
 
 /** A lone add line reads like a v1 order: just the message, no delta. */
-export const showLines = (o: Order) => !(o.lines.length === 1 && o.lines[0].op === 'add')
+export const showLines = (o: Order) => !(o.lines.length === 1 && o.lines[0].op === 'add' && o.lines[0].source !== 'voice')
 
 /** Data-access seam: Supabase in production, localStorage demo when no backend is configured. */
 export interface OrderRepo {

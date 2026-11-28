@@ -21,3 +21,6 @@ Deno.test('Given an adjustment with no open order, Then 409 no_open_order so the
   const r = respond({ status: 'no_open_order', order: null, line: null })
   assertEquals([r.status, (await r.json()).error], [409, 'no_open_order'])
 })
+Deno.test('Given a delete was stored, Then 200 with the order and the line (spec v3 §6)', () => {
+  assertEquals(respond({ status: 'created', order, line: { op: 'delete' } }).status, 200)
+})

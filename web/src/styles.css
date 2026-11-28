@@ -93,3 +93,49 @@ body {
 .lang { display: flex; gap: 2px; margin-left: auto; }
 .lang button { min-width: 44px; min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
 .lang button[aria-pressed="true"] { background: var(--head); color: var(--fg); }
+
+/* voice commands (spec v3 §7) */
+.page.voice { padding-bottom: calc(140px + env(safe-area-inset-bottom)); }
+.page.voice .toast { bottom: calc(112px + env(safe-area-inset-bottom)); }
+.dim { position: fixed; inset: 0; background: var(--bg); opacity: .5; z-index: 8; }
+.talk { position: fixed; left: 50%; transform: translateX(-50%); width: min(720px, 100%); padding: 0 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 9; display: grid; gap: 10px; }
+.talkbar { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 72px; padding: 0 14px;
+  border: 0; border-radius: 48px; background: var(--accent); color: var(--bg); font: inherit; font-size: 1.1rem; font-weight: 700;
+  box-shadow: 0 6px 18px rgb(0 0 0 / .25); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; }
+.talkbar:disabled { opacity: .5; cursor: not-allowed; }
+.talkbar:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+.talkbar.holding { height: 96px; box-shadow: 0 0 0 8px rgb(31 111 74 / .18), 0 8px 24px rgb(0 0 0 / .3); }
+.talkbar.cancelling { background: var(--muted); }
+.talkbar .mic { display: grid; place-items: center; flex: none; }
+.talkbar.holding .mic { width: 68px; height: 68px; border-radius: 50%; background: var(--bg); color: var(--accent); }
+.wave { display: flex; flex: 1; align-items: center; justify-content: center; gap: 4px; height: 40px; overflow: hidden; }
+.wave i { width: 4px; height: 12px; border-radius: 2px; background: currentColor; opacity: .75; animation: wave .5s infinite alternate ease-in-out; }
+@keyframes wave { to { height: 38px; } }
+.clock { font-variant-numeric: tabular-nums; padding-right: 8px; }
+.bubble { display: grid; gap: 8px; margin: 0; padding: 16px; border-radius: 18px; background: var(--card); box-shadow: 0 8px 28px rgb(0 0 0 / .25); }
+.bubble .said { font-size: 1.5rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.bubble .interim { color: var(--muted); }
+.bubble .hint { font-size: .8rem; font-weight: 600; color: var(--muted); }
+.bubble.cancelling .said { text-decoration: line-through; color: var(--muted); }
+.typed { display: grid; gap: 6px; }
+.typed input { min-height: 52px; width: 100%; padding: 0 12px; font: inherit; font-size: 1.2rem; border: 1.5px solid var(--accent);
+  border-radius: 12px; background: var(--bg); color: var(--fg); }
+.actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.results { display: grid; gap: 8px; margin-top: 12px; }
+.res { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; border-radius: 14px; background: var(--card);
+  box-shadow: var(--shadow); font-weight: 600; }
+.res.done { background: var(--fg); color: var(--bg); }
+.res.failed, .res.send_failed { background: #fdecea; color: #8a1c13; }
+.res.unclaimed { background: #fff3cd; color: #5c4400; }
+.res .body { flex: 1; min-width: 0; min-height: 44px; display: grid; align-content: center; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; overflow-wrap: anywhere; }
+.res button.body { cursor: pointer; }
+.res small { font-weight: 500; font-size: .8rem; opacity: .85; }
+.res .act { min-width: 44px; min-height: 44px; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.spin { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid var(--line); border-top-color: var(--fg); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(1turn); } }
+.row.hl { background: rgb(31 111 74 / .14); box-shadow: inset 3px 0 0 var(--accent); }
+.by-voice { color: var(--accent); vertical-align: -2px; margin-right: 2px; }

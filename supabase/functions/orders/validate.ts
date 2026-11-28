@@ -1,9 +1,9 @@
-// Request validation for the Order API (v1 S21, spec v2 §4). Pure: no I/O, so it can be unit tested.
+// Request validation for the Order API (v1 S21, spec v2 §4, spec v3 §6). Pure: no I/O, so it can be unit tested.
 
 // RFC 3339 date-time with an explicit offset; a zone-less time would be read in the server's zone.
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/i
 
-export const OPS = ['add', 'reduce', 'set', 'cancel'] as const
+export const OPS = ['add', 'reduce', 'set', 'cancel', 'delete'] as const
 export type Op = typeof OPS[number]
 
 export function validate(b: Record<string, unknown>) {
@@ -16,7 +16,9 @@ export function validate(b: Record<string, unknown>) {
   if (op === 'add' && !hasName) f.customer_name = 'required'
   else if (!hasName && b.customer_id === undefined) f.customer_name = 'customer_name or customer_id is required'
   const q = b.quantity as number
-  if (op === 'cancel') { if (b.quantity !== undefined && b.quantity !== null) f.quantity = 'must be omitted for cancel' }
+  if (op === 'cancel' || op === 'delete') {
+    if (b.quantity !== undefined && b.quantity !== null) f.quantity = `must be omitted for ${op}`
+  }
   else if (op === 'set') { if (!Number.isInteger(q) || q < 0) f.quantity = 'must be a non-negative integer' }
   else if (!Number.isInteger(q) || q <= 0) f.quantity = 'must be a positive integer'
   if (typeof b.delivery_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.delivery_date) ||
